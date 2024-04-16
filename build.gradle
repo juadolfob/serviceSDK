@@ -1,0 +1,177 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.4'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id "org.openapi.generator" version "7.4.0"
+    id 'jacoco'
+    id 'maven-publish'
+}
+group = 'com.serviceSDK'
+version = '0.0.1-SNAPSHOT'
+
+
+java {
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+}
+
+repositories {
+    mavenCentral()
+}
+
+
+dependencies {
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+    compileOnly 'org.projectlombok:lombok'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation('com.fasterxml.jackson.core:jackson-databind')
+    implementation('com.fasterxml.jackson.datatype:jackson-datatype-jsr310')
+    implementation('org.springdoc:springdoc-openapi-ui:1.8.0')
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+    implementation 'javax.validation:validation-api:2.0.1.Final'
+    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
+    implementation 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation 'org.mockito:mockito-inline:3.4.0'
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.h2database:h2:1.4.200'
+}
+
+ext {
+    excludedPatterns = [
+            '**/ClientServiceApplication*',
+            '**/config*/**',
+            '**/model*/**',
+            '**/dao*/**',
+            '**/*MapperImpl*/**',
+            '**/CacheEvictConfig*'
+    ]
+}
+
+jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        csv.required.set(false)
+        html.required.set(true)
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: project.excludedPatterns)
+        }))
+    }
+}
+
+test {
+    finalizedBy jacocoTestReport
+}
+
+bootJar {
+    enabled = false
+}
+
+compileJava {
+    options.annotationProcessorPath = configurations.annotationProcessor
+}
+tasks.named('test') {
+    useJUnitPlatform()
+}
+openApiGenerate {
+    skipValidateSpec = true
+    generatorName = "spring"
+    library = "spring-boot"
+    inputSpec = "${rootDir}/src/main/resources/openapi-specification.yml".toString()
+    outputDir = "${rootDir}/generated/openapi".toString()
+    globalProperties = [
+            models   : "",
+            apis     : "",
+    ]
+    configOptions = [
+            useOptional          : "false",
+            openApiNullable      : "false",
+            swaggerDocketConfig  : "false",
+            performBeanValidation: "false",
+            useBeanValidation    : "false",
+            useTags              : "true",
+            singleContentTypes   : "true",
+            title                : rootProject.name,
+            dateLibrary          : "java8-time",
+            serializableModel    : "true",
+            serializationLibrary : "jackson",
+            skipDefaultInterface : "true",
+            artifactId           : rootProject.name,
+            apiPackage           : "clientService.api",
+            modelPackage         : "clientService.dto",
+            invokerPackage       : "clientService",
+            interfaceOnly        : "true",
+            unhandledException   : "true"
+    ]
+}
+
+tasks.register('cleanGenerated', Delete) {
+    delete "${rootDir}/generated/openapi"
+}
+
+clean.dependsOn(cleanGenerated)
+compileJava.dependsOn tasks.openApiGenerate
+
+task sourceJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    archiveClassifier.set('javadoc')
+    from javadoc.destinationDir
+}
+
+javadoc {
+    source = sourceSets.main.allJava
+}
+
+jar {
+    archiveBaseName = 'serviceSDK'
+    archiveVersion = version
+    from sourceSets.main.allJava
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact(sourceJar)
+            artifact(javadocJar)
+            groupId = group
+            artifactId = rootProject.name
+            pom {
+                name = rootProject.name
+                description = 'A description of your project'
+                url = 'https://github.com/juadolfob/serviceSDK'
+
+                scm {
+                    connection = 'scm:git:git://github.com/juadolfob/serviceSDK.git'
+                    developerConnection = 'scm:git:ssh://github.com:juadolfob/serviceSDK.git'
+                    url = 'https://github.com/juadolfob/serviceSDK'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/juadolfob/serviceSDK")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_USERNAME")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+
+}

@@ -1,0 +1,9 @@
+openapi: 3.0.0
+info:
+  title: DTO Definitions
+  version: 1.0.0
+  description: Definitions of Data Transfer Objects (DTOs) for use across services.
+components:
+  schemas:
+    Metadata:
+      $ref: 'https://raw.githubusercontent.com/juadolfob/my-app/main/openapi-specs/component/schema/Metadata.yml'
